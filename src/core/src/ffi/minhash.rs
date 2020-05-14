@@ -3,10 +3,10 @@ use std::os::raw::c_char;
 use std::slice;
 
 use crate::ffi::utils::{ForeignObject, SourmashStr};
-use crate::signature::SigsTrait;
 use crate::sketch::minhash::{
     aa_to_dayhoff, aa_to_hp, translate_codon, HashFunctions, KmerMinHash,
 };
+use crate::sketch::Sketch;
 
 pub struct SourmashKmerMinHash;
 

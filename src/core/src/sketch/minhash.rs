@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::convert::TryFrom;
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
 use crate::_hash_murmur;
-use crate::signature::SigsTrait;
+use crate::sketch::Sketch;
 use crate::Error;
 
 #[cfg(all(target_arch = "wasm32", target_vendor = "unknown"))]
@@ -348,6 +349,32 @@ impl KmerMinHash {
         data.clone().unwrap()
     }
 
+    pub fn check_compatible(&self, other: &KmerMinHash) -> Result<(), Error> {
+        /*
+        if self.num != other.num {
+            return Err(SourmashError::MismatchNum {
+                n1: self.num,
+                n2: other.num,
+            }
+            .into());
+        }
+        */
+        if self.ksize != other.ksize {
+            return Err(Error::MismatchKSizes);
+        }
+        if self.hash_function != other.hash_function {
+            // TODO: fix this error
+            return Err(Error::MismatchDNAProt);
+        }
+        if self.max_hash != other.max_hash {
+            return Err(Error::MismatchScaled);
+        }
+        if self.seed != other.seed {
+            return Err(Error::MismatchSeed);
+        }
+        Ok(())
+    }
+
     pub fn add_hash(&mut self, hash: u64) {
         self.add_hash_with_abundance(hash, 1);
     }
@@ -669,6 +696,12 @@ impl KmerMinHash {
         Ok((it2.count() as u64, combined_mh.mins.len() as u64))
     }
 
+    pub fn containment(&self, other: &KmerMinHash) -> Result<f64, Error> {
+        let common = self.count_common(&other, true).unwrap(); // FIXME: downsample
+        let size = self.mins.len();
+        Ok(common as f64 / size as f64)
+    }
+
     // calculate Jaccard similarity, ignoring abundance.
     pub fn jaccard(&self, other: &KmerMinHash) -> Result<f64, Error> {
         self.check_compatible(other)?;
@@ -758,10 +791,6 @@ impl KmerMinHash {
         self.hash_function == HashFunctions::murmur64_hp
     }
 
-    pub fn hash_function(&self) -> HashFunctions {
-        self.hash_function
-    }
-
     pub fn mins(&self) -> Vec<u64> {
         self.mins.clone()
     }
@@ -809,7 +838,8 @@ impl KmerMinHash {
     }
 }
 
-impl SigsTrait for KmerMinHash {
+#[typetag::serde]
+impl Sketch for KmerMinHash {
     fn size(&self) -> usize {
         self.mins.len()
     }
@@ -822,30 +852,41 @@ impl SigsTrait for KmerMinHash {
         self.ksize as usize
     }
 
-    fn check_compatible(&self, other: &KmerMinHash) -> Result<(), Error> {
-        /*
-        if self.num != other.num {
-            return Err(Error::MismatchNum {
-                n1: self.num,
-                n2: other.num,
-            }
-            .into());
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn md5sum(&self) -> String {
+        let mut md5_ctx = md5::Context::new();
+        md5_ctx.consume(self.ksize().to_string());
+        self.mins
+            .iter()
+            .for_each(|x| md5_ctx.consume(x.to_string()));
+        format!("{:x}", md5_ctx.compute())
+    }
+
+    fn check_compatible(&self, other: &Box<dyn Sketch>) -> Result<(), Error> {
+        if let Some(omh) = other.as_any().downcast_ref::<KmerMinHash>() {
+            self.check_compatible(omh)
+        } else {
+            unimplemented!()
         }
-        */
-        if self.ksize != other.ksize {
-            return Err(Error::MismatchKSizes);
+    }
+
+    fn similarity(&self, other: &Box<dyn Sketch>) -> Result<f64, Error> {
+        if let Some(omh) = other.as_any().downcast_ref::<KmerMinHash>() {
+            self.similarity(omh, true, true) // FIXME: ignore_abundance, downsample
+        } else {
+            unimplemented!()
         }
-        if self.hash_function != other.hash_function {
-            // TODO: fix this error
-            return Err(Error::MismatchDNAProt);
+    }
+
+    fn containment(&self, other: &Box<dyn Sketch>) -> Result<f64, Error> {
+        if let Some(omh) = other.as_any().downcast_ref::<KmerMinHash>() {
+            self.containment(&omh)
+        } else {
+            unimplemented!()
         }
-        if self.max_hash != other.max_hash {
-            return Err(Error::MismatchScaled);
-        }
-        if self.seed != other.seed {
-            return Err(Error::MismatchSeed);
-        }
-        Ok(())
     }
 
     fn add_sequence(&mut self, seq: &[u8], force: bool) -> Result<(), Error> {
@@ -962,6 +1003,10 @@ impl SigsTrait for KmerMinHash {
         }
 
         Ok(())
+    }
+
+    fn hash_function(&self) -> HashFunctions {
+        self.hash_function
     }
 }
 
@@ -1532,6 +1577,32 @@ impl KmerMinHashBTree {
         self.abunds.is_some()
     }
 
+    pub fn check_compatible(&self, other: &KmerMinHashBTree) -> Result<(), Error> {
+        /*
+        if self.num != other.num {
+            return Err(Error::MismatchNum {
+                n1: self.num,
+                n2: other.num,
+            }
+            .into());
+        }
+        */
+        if self.ksize != other.ksize {
+            return Err(Error::MismatchKSizes.into());
+        }
+        if self.hash_function != other.hash_function {
+            // TODO: fix this error
+            return Err(Error::MismatchDNAProt.into());
+        }
+        if self.max_hash != other.max_hash {
+            return Err(Error::MismatchScaled.into());
+        }
+        if self.seed != other.seed {
+            return Err(Error::MismatchSeed.into());
+        }
+        Ok(())
+    }
+
     pub fn enable_abundance(&mut self) -> Result<(), Error> {
         if !self.mins.is_empty() {
             return Err(Error::NonEmptyMinHash {
@@ -1783,6 +1854,12 @@ impl KmerMinHashBTree {
         Ok((it2.count() as u64, combined_mh.mins.len() as u64))
     }
 
+    pub fn containment(&self, other: &KmerMinHashBTree) -> Result<f64, Error> {
+        let common = self.count_common(&other, true).unwrap(); // FIXME: downsample
+        let size = self.mins.len();
+        Ok(common as f64 / size as f64)
+    }
+
     // calculate Jaccard similarity, ignoring abundance.
     pub fn jaccard(&self, other: &KmerMinHashBTree) -> Result<f64, Error> {
         self.check_compatible(other)?;
@@ -1847,17 +1924,12 @@ impl KmerMinHashBTree {
             self.angular_similarity(&other)
         }
     }
-
     pub fn dayhoff(&self) -> bool {
         self.hash_function == HashFunctions::murmur64_dayhoff
     }
 
     pub fn hp(&self) -> bool {
         self.hash_function == HashFunctions::murmur64_hp
-    }
-
-    pub fn hash_function(&self) -> HashFunctions {
-        self.hash_function
     }
 
     pub fn mins(&self) -> Vec<u64> {
@@ -1907,7 +1979,8 @@ impl KmerMinHashBTree {
     }
 }
 
-impl SigsTrait for KmerMinHashBTree {
+#[typetag::serde]
+impl Sketch for KmerMinHashBTree {
     fn size(&self) -> usize {
         self.mins.len()
     }
@@ -1920,30 +1993,12 @@ impl SigsTrait for KmerMinHashBTree {
         self.ksize as usize
     }
 
-    fn check_compatible(&self, other: &KmerMinHashBTree) -> Result<(), Error> {
-        /*
-        if self.num != other.num {
-            return Err(Error::MismatchNum {
-                n1: self.num,
-                n2: other.num,
-            }
-            .into());
+    fn check_compatible(&self, other: &Box<dyn Sketch>) -> Result<(), Error> {
+        if let Some(omh) = other.as_any().downcast_ref::<KmerMinHashBTree>() {
+            self.check_compatible(omh)
+        } else {
+            unimplemented!()
         }
-        */
-        if self.ksize != other.ksize {
-            return Err(Error::MismatchKSizes);
-        }
-        if self.hash_function != other.hash_function {
-            // TODO: fix this error
-            return Err(Error::MismatchDNAProt);
-        }
-        if self.max_hash != other.max_hash {
-            return Err(Error::MismatchScaled);
-        }
-        if self.seed != other.seed {
-            return Err(Error::MismatchSeed);
-        }
-        Ok(())
     }
 
     fn add_sequence(&mut self, seq: &[u8], force: bool) -> Result<(), Error> {
@@ -2061,6 +2116,39 @@ impl SigsTrait for KmerMinHashBTree {
 
         Ok(())
     }
+
+    fn hash_function(&self) -> HashFunctions {
+        self.hash_function
+    }
+
+    fn md5sum(&self) -> String {
+        let mut md5_ctx = md5::Context::new();
+        md5_ctx.consume(self.ksize().to_string());
+        self.mins
+            .iter()
+            .for_each(|x| md5_ctx.consume(x.to_string()));
+        format!("{:x}", md5_ctx.compute())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn similarity(&self, other: &Box<dyn Sketch>) -> Result<f64, Error> {
+        if let Some(omh) = other.as_any().downcast_ref::<KmerMinHashBTree>() {
+            self.similarity(omh, true, true) // FIXME: ignore_abundance, downsample
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn containment(&self, other: &Box<dyn Sketch>) -> Result<f64, Error> {
+        if let Some(omh) = other.as_any().downcast_ref::<KmerMinHashBTree>() {
+            self.containment(&omh)
+        } else {
+            unimplemented!()
+        }
+    }
 }
 
 impl From<KmerMinHashBTree> for KmerMinHash {
@@ -2102,6 +2190,56 @@ impl From<KmerMinHash> for KmerMinHashBTree {
         let mins: BTreeSet<u64> = other.mins.into_iter().collect();
         let abunds = if let Some(abunds) = other.abunds {
             Some(mins.iter().cloned().zip(abunds.into_iter()).collect())
+        } else {
+            None
+        };
+
+        new_mh.mins = mins;
+        new_mh.abunds = abunds;
+
+        new_mh
+    }
+}
+
+impl From<&KmerMinHashBTree> for KmerMinHash {
+    fn from(other: &KmerMinHashBTree) -> KmerMinHash {
+        let mut new_mh = KmerMinHash::new(
+            other.num(),
+            other.ksize() as u32,
+            other.hash_function(),
+            other.seed(),
+            other.max_hash(),
+            other.track_abundance(),
+        );
+
+        let mins = other.mins.iter().cloned().collect();
+        let abunds = if let Some(abunds) = &other.abunds {
+            Some(abunds.values().cloned().collect())
+        } else {
+            None
+        };
+
+        new_mh.mins = mins;
+        new_mh.abunds = abunds;
+
+        new_mh
+    }
+}
+
+impl From<&KmerMinHash> for KmerMinHashBTree {
+    fn from(other: &KmerMinHash) -> KmerMinHashBTree {
+        let mut new_mh = KmerMinHashBTree::new(
+            other.num(),
+            other.ksize() as u32,
+            other.hash_function(),
+            other.seed(),
+            other.max_hash(),
+            other.track_abundance(),
+        );
+
+        let mins: BTreeSet<u64> = other.mins.iter().cloned().collect();
+        let abunds = if let Some(abunds) = &other.abunds {
+            Some(mins.iter().cloned().zip(abunds.iter().cloned()).collect())
         } else {
             None
         };

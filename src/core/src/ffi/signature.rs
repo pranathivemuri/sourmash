@@ -5,8 +5,7 @@ use std::os::raw::c_char;
 use std::slice;
 
 use crate::signature::Signature;
-use crate::sketch::minhash::HashFunctions;
-use crate::sketch::Sketch;
+use crate::sketch::minhash::{HashFunctions, KmerMinHash};
 
 use crate::ffi::cmd::compute::SourmashComputeParameters;
 use crate::ffi::minhash::SourmashKmerMinHash;
@@ -119,7 +118,7 @@ unsafe fn signature_push_mh(ptr: *mut SourmashSignature, other: *const SourmashK
     Result<()> {
     let sig = SourmashSignature::as_rust_mut(ptr);
     let mh = SourmashKmerMinHash::as_rust(other);
-    sig.push(Sketch::MinHash(mh.clone()));
+    sig.push(Box::new(mh.clone()));
     Ok(())
 }
 }
@@ -130,7 +129,7 @@ unsafe fn signature_set_mh(ptr: *mut SourmashSignature, other: *const SourmashKm
     let sig = SourmashSignature::as_rust_mut(ptr);
     let mh = SourmashKmerMinHash::as_rust(other);
     sig.reset_sketches();
-    sig.push(Sketch::MinHash(mh.clone()));
+    sig.push(Box::new(mh.clone()));
     Ok(())
 }
 }
@@ -166,11 +165,11 @@ unsafe fn signature_first_mh(ptr: *const SourmashSignature) -> Result<*mut Sourm
     let sig = SourmashSignature::as_rust(ptr);
 
     if let Some(item) = sig.signatures.get(0) {
-        if let Sketch::MinHash(mh) = item {
-          Ok(SourmashKmerMinHash::from_rust(mh.clone()))
-        } else {
-          unimplemented!()
-        }
+        let mh = match item.as_any().downcast_ref::<KmerMinHash>() {
+            Some(h) => h,
+            None => unimplemented!(),
+        };
+        Ok(SourmashKmerMinHash::from_rust(mh.clone()))
     } else {
         // TODO: need to select the correct one
         unimplemented!()

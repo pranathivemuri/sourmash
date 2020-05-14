@@ -28,6 +28,7 @@ use typed_builder::TypedBuilder;
 use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo, ToWriter};
 use crate::index::{Comparable, DatasetInfo, Index, SigStore};
 use crate::signature::Signature;
+use crate::sketch::minhash::KmerMinHash;
 use crate::Error;
 
 pub trait Update<O> {
@@ -720,19 +721,31 @@ where
     info!("Start processing leaves");
     while !datasets.is_empty() {
         let next_leaf = datasets.pop().unwrap();
+        let sig = &next_leaf.signatures[0];
+        let next_leaf_mh = match sig.as_any().downcast_ref::<KmerMinHash>() {
+            Some(h) => h,
+            None => unimplemented!(),
+        };
 
         let (simleaf_tree, in_common) = if datasets.is_empty() {
             (
                 BinaryTree::Empty,
                 HashSet::<u64, BuildHasherDefault<NoHashHasher<u64>>>::from_iter(
-                    next_leaf.mins().into_iter(),
+                    next_leaf_mh.mins().into_iter(),
                 ),
             )
         } else {
             let mut similar_leaf_pos = 0;
             let mut current_max = 0;
             for (pos, leaf) in datasets.iter().enumerate() {
-                let common = next_leaf.count_common(leaf);
+                let sig = &leaf.signatures[0];
+                let leaf_mh = match sig.as_any().downcast_ref::<KmerMinHash>() {
+                    Some(h) => h,
+                    None => unimplemented!(),
+                };
+                let common = next_leaf_mh
+                    .count_common(leaf_mh, true) // FIXME: downsample
+                    .expect("error in count_common");
                 if common > current_max {
                     current_max = common;
                     similar_leaf_pos = pos;
@@ -740,13 +753,18 @@ where
             }
 
             let similar_leaf = datasets.remove(similar_leaf_pos);
+            let sig = &similar_leaf.signatures[0];
+            let leaf_mh = match sig.as_any().downcast_ref::<KmerMinHash>() {
+                Some(h) => h,
+                None => unimplemented!(),
+            };
 
             let in_common = HashSet::<u64, BuildHasherDefault<NoHashHasher<u64>>>::from_iter(
-                next_leaf.mins().into_iter(),
+                next_leaf_mh.mins().into_iter(),
             )
             .union(
                 &HashSet::<u64, BuildHasherDefault<NoHashHasher<u64>>>::from_iter(
-                    similar_leaf.mins().into_iter(),
+                    leaf_mh.mins().into_iter(),
                 ),
             )
             .cloned()

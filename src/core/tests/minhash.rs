@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
-use sourmash::signature::{Signature, SigsTrait};
+use sourmash::signature::Signature;
 use sourmash::sketch::minhash::{
     max_hash_for_scaled, HashFunctions, KmerMinHash, KmerMinHashBTree,
 };
@@ -360,7 +360,7 @@ fn load_save_minhash_sketches() {
     let sketches = sig.sketches();
     let mut buffer = vec![];
 
-    if let Sketch::MinHash(mh) = &sketches[0] {
+    if let Some(mh) = &sketches[0].as_any().downcast_ref::<KmerMinHash>() {
         let bmh: KmerMinHashBTree = mh.clone().into();
         {
             serde_json::to_writer(&mut buffer, &bmh).unwrap();
@@ -461,7 +461,7 @@ fn load_save_minhash_sketches_abund() {
     let sketches = sig.sketches();
     let mut buffer = vec![];
 
-    if let Sketch::MinHash(mh) = &sketches[0] {
+    if let Some(mh) = &sketches[0].as_any().downcast_ref::<KmerMinHash>() {
         let bmh: KmerMinHashBTree = mh.clone().into();
         {
             serde_json::to_writer(&mut buffer, &bmh).unwrap();
