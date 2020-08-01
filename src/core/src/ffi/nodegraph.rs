@@ -3,6 +3,7 @@ use std::os::raw::c_char;
 use std::slice;
 
 use crate::index::sbt::Update;
+use crate::index::Comparable;
 use crate::sketch::nodegraph::Nodegraph;
 
 use crate::ffi::minhash::SourmashKmerMinHash;
@@ -158,6 +159,52 @@ pub unsafe extern "C" fn nodegraph_update_mh(
     let mh = SourmashKmerMinHash::as_rust(optr);
 
     mh.update(ng).unwrap();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn nodegraph_containment(
+    ptr: *const SourmashNodegraph,
+    optr: *const SourmashNodegraph,
+) -> f64 {
+    let ng = SourmashNodegraph::as_rust(ptr);
+    let ong = SourmashNodegraph::as_rust(optr);
+
+    // FIXME raise an exception properly
+    ng.containment(ong)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn nodegraph_containment_mh(
+    ptr: *const SourmashNodegraph,
+    optr: *const SourmashKmerMinHash,
+) -> f64 {
+    let ng = SourmashNodegraph::as_rust(ptr);
+    let mh = SourmashKmerMinHash::as_rust(optr);
+
+    ng.containment(mh)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn nodegraph_similarity(
+    ptr: *const SourmashNodegraph,
+    optr: *const SourmashNodegraph,
+) -> f64 {
+    let ng = SourmashNodegraph::as_rust(ptr);
+    let ong = SourmashNodegraph::as_rust(optr);
+
+    // FIXME raise an exception properly
+    ng.similarity(ong)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn nodegraph_similarity_mh(
+    ptr: *const SourmashNodegraph,
+    optr: *const SourmashKmerMinHash,
+) -> f64 {
+    let ng = SourmashNodegraph::as_rust(ptr);
+    let mh = SourmashKmerMinHash::as_rust(optr);
+
+    ng.similarity(mh)
 }
 
 ffi_fn! {

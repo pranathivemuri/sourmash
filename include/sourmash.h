@@ -210,6 +210,10 @@ bool kmerminhash_track_abundance(const SourmashKmerMinHash *ptr);
 
 void nodegraph_buffer_free(uint8_t *ptr, uintptr_t insize);
 
+double nodegraph_containment(SourmashNodegraph *ptr, const SourmashNodegraph *optr);
+
+double nodegraph_containment_mh(SourmashNodegraph *ptr, const SourmashKmerMinHash *optr);
+
 bool nodegraph_count(SourmashNodegraph *ptr, uint64_t h);
 
 bool nodegraph_count_kmer(SourmashNodegraph *ptr, const char *kmer);

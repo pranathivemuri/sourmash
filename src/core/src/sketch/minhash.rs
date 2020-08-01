@@ -14,7 +14,9 @@ use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
 
 use crate::_hash_murmur;
+use crate::index::Comparable;
 use crate::signature::SigsTrait;
+use crate::sketch::nodegraph::Nodegraph;
 use crate::Error;
 
 #[cfg(all(target_arch = "wasm32", target_vendor = "unknown"))]

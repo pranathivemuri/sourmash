@@ -7,6 +7,8 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt}
 use fixedbitset::FixedBitSet;
 
 use crate::index::sbt::Update;
+use crate::index::Comparable;
+use crate::signature::SigsTrait;
 use crate::sketch::minhash::KmerMinHash;
 use crate::Error;
 use crate::HashIntoType;
@@ -288,8 +290,10 @@ impl Nodegraph {
     pub fn unique_kmers(&self) -> usize {
         self.unique_kmers
     }
+}
 
-    pub fn similarity(&self, other: &Nodegraph) -> f64 {
+impl Comparable<&Nodegraph> for Nodegraph {
+    fn similarity(&self, other: &&Nodegraph) -> f64 {
         let result: usize = self
             .bs
             .iter()
@@ -305,7 +309,7 @@ impl Nodegraph {
         result as f64 / size as f64
     }
 
-    pub fn containment(&self, other: &Nodegraph) -> f64 {
+    fn containment(&self, other: &&Nodegraph) -> f64 {
         let result: usize = self
             .bs
             .iter()
@@ -314,6 +318,49 @@ impl Nodegraph {
             .sum();
         let size: usize = self.bs.iter().map(|bs| bs.len()).sum();
         result as f64 / size as f64
+    }
+}
+
+impl Comparable<Nodegraph> for Nodegraph {
+    fn similarity(&self, other: &Nodegraph) -> f64 {
+        let result: usize = self
+            .bs
+            .iter()
+            .zip(&other.bs)
+            .map(|(bs, bs_other)| bs.intersection(bs_other).count())
+            .sum();
+        let size: usize = self
+            .bs
+            .iter()
+            .zip(&other.bs)
+            .map(|(bs, bs_other)| bs.union(bs_other).count())
+            .sum();
+        result as f64 / size as f64
+    }
+
+    fn containment(&self, other: &Nodegraph) -> f64 {
+        let result: usize = self
+            .bs
+            .iter()
+            .zip(&other.bs)
+            .map(|(bs, bs_other)| bs.intersection(bs_other).count())
+            .sum();
+        let size: usize = self.bs.iter().map(|bs| bs.len()).sum();
+        result as f64 / size as f64
+    }
+}
+
+impl Comparable<KmerMinHash> for Nodegraph {
+    fn similarity(&self, other: &KmerMinHash) -> f64 {
+        unimplemented!()
+    }
+
+    fn containment(&self, other: &KmerMinHash) -> f64 {
+        /*
+          let result: usize = other.mins().iter().map(|h| self.get(*h)).sum();
+          result as f64 / self.size() as f64
+        */
+        unimplemented!()
     }
 }
 
