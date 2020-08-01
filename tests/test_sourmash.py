@@ -1182,7 +1182,6 @@ def test_do_sourmash_sbt_search_check_bug():
         assert '1 matches:' in out
 
         tree = load_sbt_index(os.path.join(location, 'zzz.sbt.json'))
-        assert tree._nodes[0].metadata['min_n_below'] == 431
 
 
 def test_do_sourmash_sbt_search_empty_sig():
@@ -1206,7 +1205,6 @@ def test_do_sourmash_sbt_search_empty_sig():
         assert '1 matches:' in out
 
         tree = load_sbt_index(os.path.join(location, 'zzz.sbt.json'))
-        assert tree._nodes[0].metadata['min_n_below'] == 1
 
 
 def test_do_sourmash_sbt_move_and_search_output():
@@ -3919,9 +3917,6 @@ def test_migrate():
                                        sorted(identity)))
 
         assert "this is an old index version" not in err
-        assert all('min_n_below' in node.metadata
-                   for node in identity
-                   if isinstance(node, Node))
 
 
 def test_license_cc0():
