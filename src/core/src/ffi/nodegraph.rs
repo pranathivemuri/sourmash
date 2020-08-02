@@ -158,6 +158,7 @@ pub unsafe extern "C" fn nodegraph_update_mh(
     let ng = SourmashNodegraph::as_rust_mut(ptr);
     let mh = SourmashKmerMinHash::as_rust(optr);
 
+    // FIXME raise an exception properly
     mh.update(ng).unwrap();
 }
 
@@ -169,7 +170,6 @@ pub unsafe extern "C" fn nodegraph_containment(
     let ng = SourmashNodegraph::as_rust(ptr);
     let ong = SourmashNodegraph::as_rust(optr);
 
-    // FIXME raise an exception properly
     ng.containment(ong)
 }
 
@@ -192,7 +192,6 @@ pub unsafe extern "C" fn nodegraph_similarity(
     let ng = SourmashNodegraph::as_rust(ptr);
     let ong = SourmashNodegraph::as_rust(optr);
 
-    // FIXME raise an exception properly
     ng.similarity(ong)
 }
 

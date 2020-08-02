@@ -8,7 +8,6 @@ use fixedbitset::FixedBitSet;
 
 use crate::index::sbt::Update;
 use crate::index::Comparable;
-use crate::signature::SigsTrait;
 use crate::sketch::minhash::KmerMinHash;
 use crate::Error;
 use crate::HashIntoType;
@@ -294,48 +293,29 @@ impl Nodegraph {
 
 impl Comparable<&Nodegraph> for Nodegraph {
     fn similarity(&self, other: &&Nodegraph) -> f64 {
-        let result: usize = self
-            .bs
-            .iter()
-            .zip(&other.bs)
-            .map(|(bs, bs_other)| bs.intersection(bs_other).count())
-            .sum();
-        let size: usize = self
-            .bs
-            .iter()
-            .zip(&other.bs)
-            .map(|(bs, bs_other)| bs.union(bs_other).count())
-            .sum();
-        result as f64 / size as f64
+        self.similarity(*other)
     }
 
     fn containment(&self, other: &&Nodegraph) -> f64 {
-        let result: usize = self
-            .bs
-            .iter()
-            .zip(&other.bs)
-            .map(|(bs, bs_other)| bs.intersection(bs_other).count())
-            .sum();
-        let size: usize = self.bs.iter().map(|bs| bs.len()).sum();
-        result as f64 / size as f64
+        self.containment(*other)
     }
 }
 
 impl Comparable<Nodegraph> for Nodegraph {
     fn similarity(&self, other: &Nodegraph) -> f64 {
-        let result: usize = self
+        let intersection: usize = self
             .bs
             .iter()
             .zip(&other.bs)
             .map(|(bs, bs_other)| bs.intersection(bs_other).count())
             .sum();
-        let size: usize = self
+        let union: usize = self
             .bs
             .iter()
             .zip(&other.bs)
             .map(|(bs, bs_other)| bs.union(bs_other).count())
             .sum();
-        result as f64 / size as f64
+        intersection as f64 / union as f64
     }
 
     fn containment(&self, other: &Nodegraph) -> f64 {
@@ -345,8 +325,7 @@ impl Comparable<Nodegraph> for Nodegraph {
             .zip(&other.bs)
             .map(|(bs, bs_other)| bs.intersection(bs_other).count())
             .sum();
-        let size: usize = self.bs.iter().map(|bs| bs.len()).sum();
-        result as f64 / size as f64
+        result as f64 / self.occupied_bins as f64
     }
 }
 

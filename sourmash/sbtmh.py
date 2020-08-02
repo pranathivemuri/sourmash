@@ -74,14 +74,14 @@ def _max_jaccard_underneath_internal_node(node, query):
     This should yield be an upper bound on the Jaccard similarity
     for any signature below this point.
     """
-    #query_bf = _get_bf(node, query)
+    query_bf = _get_bf(node, query)
     mh = query.minhash
 
     if len(mh) == 0:
         return 0.0
 
-    #matches = query_bf.containment(node.data) * len(mh)
-    matches = node.data.matches(mh)
+    matches = query_bf.containment(node.data) * len(mh)
+    #matches = node.data.matches(mh)
 
     # J(A, B) = |A intersection B| / |A union B|
     # If we use only |A| as denominator, it is the containment
