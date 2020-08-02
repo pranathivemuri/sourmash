@@ -80,13 +80,13 @@ def _max_jaccard_underneath_internal_node(node, query):
     if len(mh) == 0:
         return 0.0
 
-    matches = query_bf.containment(node.data) * len(mh)
-    #matches = node.data.matches(mh)
-
     # J(A, B) = |A intersection B| / |A union B|
     # If we use only |A| as denominator, it is the containment
     # Because |A| <= |A union B|, it is also an upper bound on the max jaccard
-    max_score = float(matches) / len(mh)
+    max_score = query_bf.containment(node.data)
+
+    #matches = node.data.matches(mh)
+    #max_score = float(matches) / len(mh)
 
     return max_score
 
