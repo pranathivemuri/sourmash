@@ -303,36 +303,40 @@ impl Comparable<&Nodegraph> for Nodegraph {
 
 impl Comparable<Nodegraph> for Nodegraph {
     fn similarity(&self, other: &Nodegraph) -> f64 {
-        let intersection: usize = self
-            .bs
-            .iter()
-            .zip(&other.bs)
-            .map(|(bs, bs_other)| bs.intersection(bs_other).count())
-            .sum();
-        let union: usize = self
-            .bs
-            .iter()
-            .zip(&other.bs)
-            .map(|(bs, bs_other)| bs.union(bs_other).count())
-            .sum();
-        intersection as f64 / union as f64
+        intersection_size(&self, &other) as f64 / union_size(&self, &other) as f64
     }
 
     fn containment(&self, other: &Nodegraph) -> f64 {
-        let result: usize = self
-            .bs
-            .iter()
-            .zip(&other.bs)
-            .map(|(bs, bs_other)| {
-                bs.as_slice()
-                    .iter()
-                    .zip(bs_other.as_slice().iter())
-                    .map(|(x, y)| (x & y).count_ones() as usize)
-                    .sum::<usize>()
-            })
-            .sum();
-        result as f64 / self.occupied_bins as f64
+        intersection_size(&self, &other) as f64 / self.occupied_bins as f64
     }
+}
+
+fn intersection_size(me: &Nodegraph, other: &Nodegraph) -> usize {
+    me.bs
+        .iter()
+        .zip(&other.bs)
+        .map(|(bs, bs_other)| {
+            bs.as_slice()
+                .iter()
+                .zip(bs_other.as_slice().iter())
+                .map(|(x, y)| (x & y).count_ones() as usize)
+                .sum::<usize>()
+        })
+        .sum()
+}
+
+fn union_size(me: &Nodegraph, other: &Nodegraph) -> usize {
+    me.bs
+        .iter()
+        .zip(&other.bs)
+        .map(|(bs, bs_other)| {
+            bs.as_slice()
+                .iter()
+                .zip(bs_other.as_slice().iter())
+                .map(|(x, y)| (x | y).count_ones() as usize)
+                .sum::<usize>()
+        })
+        .sum()
 }
 
 impl Comparable<KmerMinHash> for Nodegraph {
