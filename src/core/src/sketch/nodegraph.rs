@@ -323,7 +323,13 @@ impl Comparable<Nodegraph> for Nodegraph {
             .bs
             .iter()
             .zip(&other.bs)
-            .map(|(bs, bs_other)| bs.intersection(bs_other).count())
+            .map(|(bs, bs_other)| {
+                bs.as_slice()
+                    .iter()
+                    .zip(bs_other.as_slice().iter())
+                    .map(|(x, y)| (x & y).count_ones() as usize)
+                    .sum::<usize>()
+            })
             .sum();
         result as f64 / self.occupied_bins as f64
     }
