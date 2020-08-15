@@ -235,7 +235,15 @@ class SBT(Index):
         from .sbtmh import SigLeaf
         
         leaf = SigLeaf(signature.md5sum(), signature)
-        self.add_node(leaf)
+        try:
+            self._inserted_sigs
+        except AttributeError:
+            self._inserted_sigs = set()
+        if signature in self._inserted_sigs:
+            import pdb; pdb.set_trace()
+            print("duplicated sig detected!")
+        self._inserted_sigs.add(signature)
+        #self.add_node(leaf)
 
     def add_node(self, node):
         pos = self.new_node_pos(node)
