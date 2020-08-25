@@ -136,7 +136,6 @@ pub struct ComputeParameters {
 
     #[getset(get_copy = "pub", set = "pub")]
     #[builder(default = false)]
-    input_is_10x: bool,
 
     #[getset(get_copy = "pub", set = "pub")]
     #[builder(default = 2usize)]
